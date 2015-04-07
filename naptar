@@ -1,0 +1,1139 @@
+#!/bin/bash
+#################################################################
+# Naptár, az elterjedt DOS-os program egyszerű shell változata	#
+# az eredeti névnapi adatállomány felhasználásával.				#
+# Szerző: Németh László <nemethl@sol.cc.u-szeged.hu>			#
+# Felhasznált ,,irodalom'':										#
+# man bash/date/awk/echo/cut/console-codes (man-pages-1.21)		#
+# Ha magunknak szeretnénk elindítani, akkor a ~/.profile		#
+# fájlt bővítsük ki a 'naptar' sorral							#
+# Ken Pizzini módosításával bash-2.0-val is működik				#
+# A program kihasználja a GNU 'date' egyes bővített funkcióit	#
+# Módosítva : 2000. jan. 16.									#
+# Gyulai Mihály <gyulai@my-deja.com>							#
+#################################################################
+# A programot a nevek jelentésének kiírásával kibővítette,		#
+#                                                               #
+# Charlos <charlos1984@citromail.hu>							#
+# Módosítva : 2006. nov. 2.									    #
+#################################################################
+
+# segítség kiíratása
+
+case $1 in
+ -h|-?|--help) { \
+  echo "naptar 1.4 (c) FSF (GPL) <nemethl@sol.cc.u-szeged.hu>" 
+  echo -e "Példák a naptar paraméterezéseire:\n"; \
+  echo "# ./naptar Éva"; $0 Éva; \
+  echo -e "\n# ./naptar 0113"; $0 0113; \
+  echo -e "\nSzemélyes naptári eseményeinket a ~/.naptar/naptar.dat";  
+  echo "állományban rögzíthetjük. Ld. az állományt.";   
+  exit; } ;;
+esac
+
+
+# Ha még nem létezik a felhasználói naptár állomány, akkor első 
+# indításkor létrehozza, ~/.naptar/naptar.dat néven.
+# Személyes naptárbejegyzéseinket abba a fájlba írjuk bele !
+
+test -s ~/.naptar/naptar.dat || \
+  { mkdir ~/.naptar; grep "^;" $0 > ~/.naptar/naptar.dat; }
+
+TOMB='
+ BEGIN {s["0"]="vasárnap";
+	s["1"]="hétfő";
+	s["2"]="kedd";
+	s["3"]="szerda";
+	s["4"]="csütörtök";
+	s["5"]="péntek";
+	s["6"]="szombat";
+	m["01"]="január";
+	m["02"]="február";
+	m["03"]="március";
+	m["04"]="április";
+	m["05"]="május";
+	m["06"]="június";
+	m["07"]="július";
+	m["08"]="augusztus";
+	m["09"]="szeptember";
+	m["10"]="október";
+	m["11"]="november";
+	m["12"]="december";  
+	ON="\033[1m";
+	OFF="\033[0m";
+	}'
+
+# Megadott névhez tartozó dátum kiírása, ha indításkor ezt kértük
+test -z "$1" || { grep ^[0-1] $0 | grep $1 | awk "$TOMB"'
+ {print ON m[substr($1,1,2)] " " sprintf("%d",substr($1,3,2)) OFF ". "  substr($0,6,80)}';
+exit; }
+
+# Naptári információk megjelenítése
+VONAL="\033[36m\033[1m------------------------------------------------------------------------------\033[0m"
+HONAP=`date +%m`
+NAP=`date +%d`
+JEL="j"
+UNNEP="u"
+DEC31=`date --date '31dec' +%j`
+LUCA ="1213"
+KARACSONY=`date --date '24dec' +%j`
+
+clear
+echo -e $VONAL
+echo -e "\e[01;34m                                  Naptár 1.4 \e[0m"
+echo -e $VONAL
+#echo `date +"%w %Y %m %-d %W %-j %k %M %S"`  | awk "
+# ez a heti kiírás megfelel az ISO 8601 szabványnak:
+echo `date +"%w %Y %m %-d %-V %-j %k %M %S"`  | awk "
+#	     $1 $2 $3 $4  $5 $6  $7 $8 $9
+# ez a fenti sor csak segítség
+  $TOMB"'
+  {print "Ma "ON $2 ". "m[$3]" "$4"."OFF " van, " ON s[$1] OFF ". Helyi idő: "ON $7 OFF" óra "ON $8 OFF " perc, "ON $9 OFF " mp.";
+  print "Ez az év " ON $5 ". " OFF "hete, " ON $6 ". " OFF "napja, még " ON '$DEC31'-$6 OFF " nap van hátra az évből.";
+  }'
+
+function aranykopes () {
+	echo -e "\e[0mMai aranyköpés: \e[01;32m"; fortune
+	echo -e $VONAL
+}
+
+if [ "$HONAP$NAP" = "$LUCA" ]; then
+echo `date +"%w %Y %m %-d %-V %-j "` | awk "
+  $TOMB"'{print "Még " ON '$KARACSONY'-$6 OFF " nap van hátra Karácsonyig.";}'
+fi
+grep ^$HONAP$NAP $0 | 
+  awk -F"\t" '{print "Ma \033[33m\033[1m"$2"\033[0m névnapja van!"}'
+HOLNAP=`date +%m%d --date '1 day'`
+echo -n "Következő névnapok:" `grep ^$HOLNAP $0 | cut -b 5-80`"; "
+HOLNAP=`date +%m%d --date '2 days'`
+echo -n `grep ^$HOLNAP $0 | cut -b 5-80`"; "
+HOLNAP=`date +%m%d --date '3 days'`
+echo -e `grep ^$HOLNAP $0 | cut -b 5-80`;
+echo -e $VONAL
+echo -e "Aktuális nevek jelentése:"
+grep ^$JEL$HONAP$NAP $0 | 
+ awk -F"\t" '{print "\033[36m"$2"\033[0m"}'
+echo -e $VONAL
+# Saját dátumok keresése és kiírása
+echo -ne "\033[35m\033[1m"
+MUNNEP=`grep ^$UNNEP$HONAP$NAP $0 | cut -b 7-80`
+if [ "$MUNNEP" = "" ]; then
+	echo -ne ""
+else
+	echo -e "\033[31m\033[1m$MUNNEP"
+	echo -e $VONAL
+fi
+
+CSINAL=`grep "^0000
+^"00"$NAP
+^$HONAP"00"
+^$HONAP$NAP" ~/.naptar/naptar.dat | cut -b 6-80`
+if [ "$CSINAL" = "" ] ; then
+	aranykopes
+else
+	echo -e "\e[0mMai teendő: \e[01;35m$CSINAL"
+	echo -e $VONAL
+	aranykopes
+fi
+
+exit
+
+;                          NAPTAR.DAT
+;
+;  A NAPTAR.DAT állomány a NAPTAR program tartozéka. Ennek segítségével saját
+;  évfordulóinkat, barátaink, ismerőseink születésnapját, nevezetes esemé-
+;  nyeket is "megjegyeztethetünk" a programmal.  A felhasználó által beírt
+;  dátumok szövege lila színnel jelenik majd meg.
+;
+;  A következő forma használatos:  
+;  Minden sor négy karakteres azonosítóból, egy szóközből és egy üzenetből áll.
+;  A négy karakteres azonosító a hónapot és a napot jelöli. 
+;  Például '0223' február 23-át jelenti. 
+;  Ha azt szeretnénk, hogy minden hónap 23-án figyelmeztessen a program,
+;  akkor a sor elejére '0023'-at írjunk. 
+;  Ha február hónap minden napján szeretnénk látni üzenetünket, akkor 
+;  írjunk a sor elejére '0200'-t. 
+;  Használható ugyancsak a '0000' azonosító, ekkor az üzenet minden nap,
+;  illetve minden programindításkor meg fog jelenni.  
+;  Egy adott napra több üzenetet is kiírathatunk, sorrendjük a naptar.dat 
+;  állományban elfoglalt helyüktől függ.
+;
+; Példák: (A dátumazonosítót az első oszlopban kell kezdeni!)
+;
+; 0308 Minden évben március 8-án megjelenik.
+; 0000 Ez egy olyan üzenet, amely egész évben, minden nap meg fog jelenni.
+; 0200 Ez a mondat február minden napján megjelenik.
+; 0031 Minden hónap 31. napján, ha van ilyen az adott hónapban.
+; 0307 Holnap nőnap! (Érdemes előre figyelmeztetni magunkat.)
+;
+
+0101	Fruzsina
+0102	Ábel
+0103	Genovéva, Benjámin
+0104	Titusz, Leona
+0105	Simon
+0106	Boldizsár
+0107	Attila, Ramóna
+0108	Gyöngyvér
+0109	Marcell
+0110	Melánia
+0111	Ágota
+0112	Ernő
+0113	Veronika
+0114	Bódog
+0115	Lóránt, Loránd
+0116	Gusztáv
+0117	Antal, Antónia
+0118	Piroska
+0119	Sára, Márió
+0120	Fábián, Sebestyén
+0121	Ágnes
+0122	Vince, Artúr
+0123	Zelma, Rajmund
+0124	Timót
+0125	Pál
+0126	Vanda, Paula
+0127	Angelika
+0128	Károly, Karola
+0129	Adél
+0130	Martina, Gerda
+0131	Marcella
+0201	Ignác
+0202	Karolina, Aida
+0203	Balázs
+0204	Ráhel, Csenge
+0205	Ágota, Ingrid
+0206	Dorottya, Dóra
+0207	Tódor, Rómeó
+0208	Aranka
+0209	Abigél, Alex
+0210	Elvira
+0211	Bertold, Marietta
+0212	Lívia, Lídia
+0213	Ella, Linda
+0214	Bálint, Valentin
+0215	Kolos, Georgina
+0216	Julianna, Lilla
+0217	Donát
+0218	Bernadett
+0219	Zsuzsanna
+0220	Aladár, Álmos
+0221	Eleonóra
+0222	Gerzson
+0223	Alfréd
+0224	Mátyás
+0225	Géza
+0226	Edina
+0227	Ákos, Bátor
+0228	Elemér
+0229	Anonymus
+0301	Albin
+0302	Lujza
+0303	Kornélia
+0304	Kázmér
+0305	Adorján, Adrián
+0306	Leonóra, Inez
+0307	Tamás
+0308	Zoltán
+0309	Franciska, Fanni
+0310	Ildikó
+0311	Szilárd
+0312	Gergely
+0313	Krisztián, Ajtony
+0314	Matild
+0315	Kristóf
+0316	Henrietta
+0317	Gertrúd, Patrik
+0318	Sándor, Ede
+0319	József, Bánk
+0320	Klaudia
+0321	Benedek
+0322	Beáta, Izolda
+0323	Emőke
+0324	Gábor, Karina
+0325	Irén, Irisz
+0326	Emánuel
+0327	Hajnalka
+0328	Gedeon, Johanna
+0329	Auguszta
+0330	Zalán
+0331	Árpád
+0401	Hugó
+0402	Áron
+0403	Buda, Richárd
+0404	Izidor
+0405	Vince
+0406	Vilmos, Bíborka
+0407	Herman
+0408	Dénes
+0409	Erhard
+0410	Zsolt
+0411	Leó, Szaniszló
+0412	Gyula
+0413	Ida
+0414	Tibor
+0415	Anasztázia, Tas
+0416	Csongor
+0417	Rudolf
+0418	Andrea, Ilma
+0419	Emma
+0420	Tivadar
+0421	Konrád
+0422	Csilla, Noémi
+0423	Béla
+0424	György
+0425	Márk
+0426	Ervin
+0427	Zita
+0428	Valéria
+0429	Péter
+0430	Katalin, Kitti
+0501	Fülöp, Jakab
+0502	Zsigmond
+0503	Tímea, Irma
+0504	Mónika, Flórián
+0505	Györgyi
+0506	Ivett, Frida
+0507	Gizella
+0508	Mihály
+0509	Gergely
+0510	Ármin, Pálma
+0511	Ferenc
+0512	Pongrác
+0513	Szervác, Imola
+0514	Bonifác
+0515	Zsófia, Szonja
+0516	Mózes, Botond
+0517	Paszkál
+0518	Erik, Alexandra
+0519	Ivó, Milán
+0520	Bernát, Felícia
+0521	Konstantin
+0522	Júlia, Rita
+0523	Dezső
+0524	Eszter, Eliza
+0525	Orbán
+0526	Fülöp, Evelin
+0526	Evelin
+0527	Hella
+0528	Emil, Csanád
+0529	Magdolna
+0530	Janka, Zsanett
+0531	Angéla, Petronella
+0601	Tünde
+0602	Kármen, Anita
+0603	Klotild
+0604	Bulcsú
+0605	Fatime
+0606	Norbert, Cintia
+0607	Róbert
+0608	Medárd
+0609	Félix
+0610	Margit, Gréta
+0611	Barnabás
+0612	Villő
+0613	Antal, Anett
+0614	Vazul
+0615	Jolán, Vid
+0616	Jusztin
+0617	Laura, Alida
+0618	Arnold, Levente
+0619	Gyárfás
+0620	Rafael
+0621	Alajos, Leila
+0622	Paulina
+0623	Zoltán
+0624	Iván
+0625	Vilmos
+0626	János, Pál
+0627	László
+0628	Levente, Irén
+0629	Péter, Pál
+0630	Pál
+0701	Tihamér, Annamária
+0702	Ottó
+0703	Kornél, Soma
+0704	Ulrik
+0705	Emese, Sarolta
+0706	Csaba
+0707	Apollónia
+0708	Ellák
+0709	Lukrécia
+0710	Amália
+0711	Nóra, Lili
+0712	Izabella, Dalma
+0713	Jenő
+0714	Örs, Stella
+0715	Henrik, Roland
+0716	Valter
+0717	Endre, Elek
+0718	Frigyes
+0719	Emília
+0720	Illés
+0721	Dániel, Daniella
+0722	Magdolna
+0723	Lenke
+0724	Kinga, Kincső
+0725	Kristóf, Jakab
+0726	Anna, Anikó
+0727	Olga, Liliána
+0728	Szabolcs
+0729	Márta, Flóra
+0730	Judit, Xénia
+0731	Oszkár
+0801	Boglárka
+0802	Lehel
+0803	Hermina
+0804	Domonkos, Dominika
+0805	Krisztina
+0806	Berta, Bettina
+0807	Ibolya
+0808	László
+0809	Emőd
+0810	Lőrinc
+0811	Zsuzsanna, Tiborc
+0812	Klára
+0813	Ipoly
+0814	Marcell
+0815	Mária
+0816	Ábrahám
+0817	Jácint
+0818	Ilona
+0819	Huba
+0820	István
+0821	Sámuel, Hajna
+0822	Menyhért, Mirjam
+0823	Bence
+0824	Bertalan
+0825	Lajos, Patrícia
+0826	Izsó
+0827	Gáspár
+0828	Ágoston
+0829	Beatrix, Erna
+0830	Rózsa
+0831	Erika, Bella
+0901	Egyed, Egon
+0902	Rebeka, Dorina
+0903	Hilda
+0904	Rozália
+0905	Viktor, Lőrinc
+0906	Zakariás
+0907	Regina
+0908	Mária, Adrienn
+0909	Ádám
+0910	Nikolett, Hunor
+0911	Teodóra
+0912	Mária
+0913	Kornél
+0914	Szeréna, Roxána
+0915	Enikő, Melitta
+0916	Edit
+0917	Zsófia
+0918	Diána
+0919	Vilhelmina
+0920	Friderika
+0921	Máté, Mirella
+0922	Móric
+0923	Tekla
+0924	Gellért, Mercédesz
+0925	Eufrozina, Kende
+0926	Jusztina
+0927	Adalbert
+0928	Vencel
+0929	Mihály
+0930	Jeromos
+1001	Malvin
+1002	Petra
+1003	Helga
+1004	Ferenc
+1005	Aurél
+1006	Brúnó, Renáta
+1007	Amália
+1008	Koppány
+1009	Dénes
+1010	Gedeon
+1011	Brigitta
+1012	Miksa
+1013	Kálmán, Ede
+1014	Helén
+1015	Teréz
+1016	Gál
+1017	Hedvig
+1018	Lukács
+1019	Nándor
+1020	Vendel
+1021	Orsolya
+1022	Előd
+1023	Gyöngyi
+1024	Salamon
+1025	Blanka, Bianka
+1026	Dömötör
+1027	Szabina
+1028	Simon, Szimonetta
+1029	Nárcisz
+1030	Alfonz
+1031	Farkas
+1101	Marianna
+1102	Achilles
+1103	Győző
+1104	Károly
+1105	Imre
+1106	Lénárd
+1107	Rezső
+1108	Zsombor
+1109	Tivadar
+1110	Réka
+1111	Márton
+1112	Jónás, Renátó
+1113	Szilvia
+1114	Aliz
+1115	Albert, Lipót
+1116	Ödön
+1117	Hortenzia, Gergő
+1118	Jenő
+1119	Erzsébet
+1120	Jolán
+1121	Olivér
+1122	Cecília
+1123	Kelemen, Klementina
+1124	Emma
+1125	Katalin
+1126	Virág
+1127	Virgil
+1128	Stefánia
+1129	Taksony
+1130	András, Andor
+1201	Elza
+1202	Melinda, Vivien
+1203	Ferenc
+1204	Borbála, Barbara
+1205	Vilma
+1206	Miklós
+1207	Ambrus
+1208	Mária
+1209	Natália
+1210	Judit
+1211	Árpád
+1212	Gabriella
+1213	Luca, Otília
+1214	Szilárda
+1215	Valér
+1216	Etelka, Aletta
+1217	Lázár, Olimpia
+1218	Auguszta
+1219	Viola
+1220	Teofil
+1221	Tamás
+1222	Zénó
+1223	Viktória
+1224	Ádám, Éva
+1225	Eugénia
+1226	István
+1227	János
+1228	Kamilla
+1229	Tamás, Tamara
+1230	Dávid
+1231	Szilveszter
+j0101	Fruzsina: görög-magyar eredetű; jelentése: vidám.
+u0101	Boldog Új Évet!
+j0102	Ábel: héber eredetű, Bibliai név jelentése: múlandóság
+j0103	Genovéva: germán eredetű; jelentése: (bizonytalan).
+j0103	Benjámin: héber eredetű; jelentése: szerencse fia.
+j0104	Titusz: latin eredetű; jelentése: tisztelt, becsült, tiszteletreméltó férfiú,
+j0104	mezei galamb.
+j0104	Leona: görög-latin eredetű; jelentése: oroszlán.
+j0105	Simon: a Simeon rövidüléséből.
+j0106	Boldizsár: asszír-babilóniai-német-magyar eredetű: jelentése: Baal isten óvja
+j0106	életét.
+j0107	Attila: gót eredetű; jelentése: szeretett apánk.
+j0107	Ramóna: germán-spanyol eredetű; jelentése: okos, védelmező.
+j0108	Gyöngyvér: Arany János névalkotása, jelentése: gyöngytestvér.
+j0109	Marcell: latin eredetű; jelentése: Mars istenhez tartozó, neki szentelt.
+j0110	Melánia: görög eredetű; jelentése: fekete, sötét.
+j0111	Ágota: Az Agáta régi magyar formája.
+j0112	Ernő: germán eredetű; jelentése: komolyság, erély
+j0113	Veronika: I: görög-latin eredetű; jelentése: győzelmet hozó. II: latin-görög
+j0113	eredetű; jelentése: igaz + ikon.
+j0114	Bódog: magyar eredetű; jelentése: boldog, gazdag.
+j0115	Lóránt: germán eredetű; jelentése: dicsőség, merész.
+j0115	Loránd: a Lóránt régies változata
+j0116	Gusztáv: skandináv-német eredetű; jelentése: a gótok támasza.
+j0117	Antal: latin eredetű; jelentése: herceg, fejedelem, előljáró.
+j0117	Antónia: latin eredetű; jelentése: herceg, fejedelem, előljáró.
+j0118	Piroska: latin-magyar eredetű; jelentése: régi egykori, tiszteletre méltó.
+j0119	Sára: lásd: Sarolta: I. török-magyar eredetű; jelentése: fehér menyét II.
+j0119	A Charlotte név magyarosítása.
+j0119	Márió: jelentése: férfi.
+j0120	Fábián: latin eredetű; jelentése: Fabiusz nemzettséghez tartozó férfi.
+j0120	Sebestyén: görög-latin eredetű; jelentése: magasztos, felséges.
+j0121	Ágnes: görög eredetű; jelentése: szent, tiszta, szemérmes, érintetlen,
+j0121	szűzies, tartózkodó.
+j0122	Vince: latin eredetű; jelentése: győztes.
+j0122	Artúr: kelta-angol eredetű; jelentése: medve.
+j0123	Zelma: héber-latin eredetű; jelentése: az Istenség védelme alatt álló nő.
+j0123	Rajmund: német eredetű; jelentése: okos védő.
+j0124	Timót: görög eredetű; jelentése: Isten becsülője.
+j0125	Pál: latin-angol eredetű, jelentése: kicsi
+j0126	Vanda: I. - lengyel eredetű; jelentése: vend nő; II. - a Wendel- kezdetű
+j0126	német női nevek önállósult becézője
+j0126	Paula: latin eredetű; jelentése: kicsi, kis termetű.
+j0127	Angelika: latin eredetű; jelentése: angyali, angyalhoz hasonló.
+j0128	Károly: II. - magyar eredetű; jelentése: karvaly, turul; II. - germán-latin
+j0128	eredetű; jelentése: legény, fiú.
+j0128	Karola: A Károly női párja
+j0129	Adél: német eredetű, jelentése: medve
+j0130	Martina: latin eredetű; jelentése: Mars istenhez hasonló, merész, bátor.
+j0130	Gerda: I. - germán eredetű; jelentése: ág, vessző; II. - germán eredetű;
+j0130	jelentése: dárda + bekerített hely; vessző, varázsvessző.
+j0131	Marcella: latin eredetű; jelentése: határerdő, a határvidék védője.
+j0201	Ignác: latin eredetű; jelentése: tűz.
+j0202	Karolina: a Karola továbbképzése. Karola: latin-germán eredetű; jelentése:
+j0202	legény, fiú.
+j0202	Aida: Verda hasonló című operája, illetve főszereplőjének a neve.
+j0203	Balázs: latin-magyar eredetű; jelentése: királyi.
+j0204	Ráhel: héber eredetű; jelentése: bárány.
+j0204	Csenge: magyar eredetű; jelentése: (ismeretlen).
+j0205	Ágota: az Agáta régi magyar formája.
+j0205	Ingrid: germán eredetű; jelentése: Ingwio isten által oltalmazott lovasnő.
+j0206	Dorottya: görög eredetű; jelentése: Isten ajándéka.
+j0206	Dóra: görög eredetű; jelentése: Isten ajándéka.
+j0207	Tódor: a Teodor rövidüléséből. Teodor: görög-német-latin eredetű; jelentése:
+j0207	Isten ajándéka. 
+j0207	Rómeó: olasz eredetű; jelentése: Rómába zarándokló.
+j0208	Aranka: magyar eredetű; jelentése: az arany szó kicsinyítőképzős származéka.
+j0209	Abigél: héber eredetű; jelentése: az apa öröme.
+j0209	Alex: az Alexandra név rövidítése. Alexandra: görög-latin eredetű; jelentése:
+j0209	harcra kész, az embereket oltalmazó.
+j0210	Elvira: I. - nyugati gót eredetű; jelentése: akit az ereklye megvéd; II. -
+j0210	az Elmira alakváltozata. Elmira: spanyol eredetű; jelentése: fenséges,
+j0210	fennkölt, hercegnő.
+j0211	Bertold: germán eredetű; jelentése: pompával uralkodó.
+j0211	Marietta: a Mária olasz továbbképzése. Mária: héber eredetű név; jelentése
+j0211	megfejthetetlen, valamennyi magyarázata vitatott.
+j0212	Lívia: latin eredetű; jelentése: ólomszínű, kékes.
+j0212	Lídia: görög eredetű; jelentése: az ókori Lídiából való nő.
+j0213	Ella: germán eredetű; jelentése: minden(ség)
+j0213	Linda: német eredetű; jelentése: hársfából készült pajzs; kígyó.
+j0214	Bálint: latin eredetű; jelentése: erős, egészséges.
+j0214	Valentin: latin eredetű; jelentése: erős, egészséges.
+j0215	Kolos: német-latin-magyar eredetű; jelentése: iskolához tartozó, tanító,
+j0215	tanuló
+j0215	Georgina: görög-latin eredetű; jelentése: földműves, gazdálkodó; dália,
+j0215	györgyike.
+j0216	Julianna: latin eredetű; jelentése: ragyogó; Jupiternek szentelt.
+j0216	Lilla: a Lídia és Lívia régi magyar becézőjéből önállósult.
+j0217	Donát: latin eredetű; jelentése: Istentől ajándékozott.
+j0218	Bernadett: germán-francia eredetű; jelentése: erős, mint a medve.
+j0219	Zsuzsanna: héber-görög-latin eredetű; jelentése: liliom.
+j0220	Aladár: I. - török eredetű; jelentése: testőrhadnagy; II. - germán
+j0220	eredetű; jelentése: mindenben hatalmas; III. - iráni eredetű; jelentése:
+j0220	előljáró.
+j0220	Álmos: I. - magyar eredetű jelentése: álombeli,megálmodott; II. - török
+j0220	eredetű; jelentése: vétel; III. - bolgár eredetű; jelentése: magasztos.
+j0221	Eleonóra: arab eredetű; jelentése: Isten az én világosságom.
+j0222	Gerzson: héber eredetű; jelentése: az idegen, a száműzött.
+j0223	Alfréd: germán eredetű; jelentése: tündér, tanács.
+j0224	Mátyás: héber-latin eredetű; jelentése: Jahve ajándéka.
+j0225	Géza: török-német-magyar eredetű; jelentése: méltóságnév.
+j0226	Edina: I. - germán eredetű; jelentése: Hedin városából való; II. - germán
+j0226	eredetű; jelentése: állatbőr, bunda; III. - az Éda név továbbképzése;
+j0226	IV. - az Edna név módosulata.
+j0227	Ákos: török eredetű, régi magyar név; jelentése: fehér sólyom
+j0227	Bátor: török-magyar eredetű; jelentése: a szó maga.
+j0228	Elemér: vitás eredetű régi magyar személynév; jelentése: nemes + híres
+j0229	Anonymus: (ismeretlen)
+j0301	Albin: I. - latin eredetű; jelentése: fehér; II. - germán eredetű;
+j0301	jelentése: nemes barát.
+j0302	Lujza: a francia Louise magyarosított formája.
+j0303	Kornélia: latin eredetű; jelentése: somfa; szarv.
+j0304	Kázmér: a Kazimír magyarosabb alakja. Kazimír: lengyel eredetű; jelentése:
+j0304	békealapító; békebontó.
+j0305	Adorján: latin eredetű; jelentése: Hadria városából való férfi.
+j0305	Adrián: az Adorján eredetibb változata.
+j0306	Leonóra: az Elenonóra önállósult becézője. Eleonóra: arab eredetű;
+j0306	jelentése: Isten az én világosságom.
+j0306	Inez: görög eredetű; jelentése: szűzies, tiszta, szemérmes.
+j0307	Tamás: arameus-görög eredetű; jelentése: iker; csodálatos.
+j0308	Zoltán: török-magyar eredetű; jelentése: fejedelem.
+j0309	Franciska: latin eredetű; jelentése: francia.
+j0309	Fanni: I. a Franciska (Frances) becézője; II. - a Stefánia (Stephanie)
+j0309	becézője. Stefánia: latin eredetű; jelentése: virágkoszorú.
+j0310	Ildikó: germán eredetű; jelentése: harcos.
+j0311	Szilárd: a Konstantin magyarító lefordítása. Konstantin: latin eredetű;
+j0311	jelentése: Constantius családjához tartozó; szilárd, állhatatos,
+j0312	Gergely: görög eredetű; jelentése: éberen őrködő.
+j0313	Krisztián: latin eredetű; jelentése: Krisztushoz tartozó, keresztény.
+j0313	Ajtony: török-magyar eredetű; jelentése: arany.
+j0314	Matild: német eredetű; jelentése: hatalom + harc.
+j0315	Kristóf: görög eredetű; jelentése: Krisztust hordozó.
+u0315	Ma Nemzeti Ünnep van.
+j0316	Henrietta: francia eredetű; jelentése: körülkerített birtokán uralkodó.
+j0317	Gertrúd: germán eredetű; jelentése: a dárdák varázslónője.
+j0317	Patrik: a Patrícius ír rövidülése. Patrícius: latin eredetű; jelentése:
+j0317	rómainak született nemes.
+j0318	Sándor: I. - görög-olasz-német eredetű; jelentése: az embereket vagy az
+j0318	emberek ellen oltalmazó II. - török eredetű; jelentése: akarat.
+j0318	Ede: germán (angolszász) eredetű név; jelentése: birtok, vagyon + őrzés,
+j0318	védelem.
+j0319	József: héber eredetű; jelentése: Jahve + gyarapítson.
+j0319	Bánk: régi magyar személynév; a Bán méltóságnévből származik.
+j0320	Klaudia: latin eredetű; jelentése: a Claudius nemzetség nŐtagja.
+j0321	Benedek: latin eredetű; jelentése: áldott.
+j0322	Beáta: latin eredetű; jelentése: boldog.
+j0322	Izolda: kelta-német eredetű; jelentése: vas; tevékenykedni, rendelkezni.
+j0323	Emőke: régi, magyar név; jelentése: szopó, csecsemő.
+j0324	Gábor: héber eredetű; jelentése: Isten embere, Isten bajnoka.
+j0324	Karina: I. - olasz eredetű; jelentése: csinos nő. II. - a Katalin svéd
+j0324	formájának továbbképzése. III. - a Katalin dán formájából.
+j0325	Irén: görög eredetű; jelentése: béke.
+j0325	Irisz: görög eredetű; jelentése: szivárvány, nőszirom.
+j0326	Emánuel: héber eredetű; jelentése: velünk az Isten.
+j0327	Hajnalka: a Hajna kicsinyítőképzős formája. Hajna: Vörösmarty Mihály
+j0327	névalkotása; jelentése: hajnal.
+j0328	Gedeon: héber eredetű; jelentése: harcos, vágó, romboló.
+j0328	Johanna: héber-görög-latin eredetű; jelentése: Isten kegyelme, Isten
+j0328	kegyelmes.
+j0329	Aguszta: latin eredetű; jelentése: fenséges, fennkölt.
+j0330	Zalán: török-magyar eredetű; jelentése: dobó, ütő.
+j0331	Árpád: magyar eredetű; jelentése: árpa.
+j0401	Hugó: germán eredetű; jelentése: értelem.
+j0402	Áron: héber eredetű, Bibliai név; jelentése: ihletett, tisztánlátó, vagy a
+j0402	bátorság hegye.
+j0403	Buda: régi magyar személynév; jelentése: lenni+béke.
+j0403	Richárd: német eredetű; jelentése: erős fejedelem.
+j0404	Izidor: görög-latin eredetű; jelentése: Ízisz egyiptomi istennő ajándéka.
+j0405	Vince: latin eredetű; jelentése: győztes.
+j0406	Vilmos: latin-germán eredetű; jelentése: erős akaratú védelmező.
+j0406	Bíborka: magyar eredetű; jelentése: bíbor
+j0407	Herman: germán eredetű; jelentése: hadi férfi.
+j0408	Dénes: görög eredetű; jelentése: Dionüszosznak, a bor és a szőlő istenének
+j0408	ajánlott.
+j0409	Erhard: germán eredetű; jelentése: becsület + erős.
+j0410	Zsolt: magyar eredetű; jelentése: (ismeretlen).
+j0411	Leó: görög eredetű; jelentése: oroszlán.
+j0411	Szaniszló: szláv eredetű; jelentése: állandó dicsőség.
+j0412	Gyula: bolgár-török-magyar eredetű; jelentése: magyar méltóságnév.
+j0413	Ida: germán eredetű; jelentése: tevékenység, serény.
+j0414	Tibor: a Tiborc rövidülése. Tiborc: latin eredetű; jelentése: Tibur városából
+j0414	való férfi.
+j0415	Anasztázia: görög eredetű; jelentése: a feltámadott.
+j0415	Tas: török-magyar eredetű; jelentése: kő, jóllakott, megtelt.
+j0416	Csongor: török-magyar eredetű; jelentése: vadászmadár.
+j0417	Rudolf: német eredetű; jelentése: dicső farkas.
+j0418	Andrea: görög-latin eredetű; jelentése: férfi, férfias.
+j0418	Ilma: finn eredetű; jelentése: levegő, ég, világ.
+j0419	Emma: germán eredetű; jelentése: (ismeretlen).
+j0420	Tivadar: görög-latin eredetű; jelentése: Isten ajándéka.
+j0421	Konrád: német eredetű; jelentése: merész + tanács.
+j0422	Csilla: Vörösmarty Mihály névalkotása; jelentése: káka; nád hajtása;
+j0422	gyékénybél.
+j0422	Noémi: héber eredetű; jelentése: gyönyörűségem.
+j0423	Béla: bizonytalan eredetű, régi magyar személynév; jelentése: előkelő.
+j0424	György: görög-latin eredetű; jelentése: földműves, gazdálkodó.
+j0425	Márk: latin eredetű; jelentése: Mars hadistenhez tartozó, neki szentelt.
+j0426	Ervin: germán eredetű; jelentése: a hadsereg barátja; vadkan erejű jó barát.
+j0427	Zita: német eredetű név; jelentése: sebes, gyors.
+j0428	Valéria: latin eredetű; jelentése: erős, egészséges.
+j0429	Péter: héber-görög-latin eredetű; jelentése: kőszikla.
+j0430	Katalin: egyiptomi-görög-német-magyar eredetű; jelentése: korona; mindig
+j0430	tiszta.
+j0430	Kitti: a Katalin angol becézőjéből önállósult.
+j0501	Fülöp: görög eredetű; jelentése: lókedvelő.
+j0501	Jakab: héber eredetű; jelentése: (bizonytalan).
+u0501	Ma van a munka ünnepe.
+j0502	Zsigmond: germán eredetű; jelentése: győzelmes védő.
+j0503	Tímea: görög-magyar eredetű; jelentése: jó + tisztelet.
+j0503	Irma: Az Irm- kezdetű germán női nevek, német eredetű rövidülése.
+j0504	Mónika: I. - görög eredetű; jelentése: magányos, egyedül élő; II. - latin
+j0504	eredetű; jelentése: intő, figyelmeztető, tanító; III. - karthágói-pun
+j0504	eredetű; jelentése: istennő.
+j0504	Flórián: latin eredetű; jelentése: virágos, virágzó.
+j0505	Györgyi: a Georgina női név magyarosítása.
+j0506	Ivett: francia eredetű; jelentése: júdeai.
+j0506	Frida: német eredetű; jelentése: béke, védelem, körülkerített terület.
+j0507	Gizella: I. - germán eredetű; jelentése: női túsz, női kezes. II. - a
+j0507	Gisel-, Geisel- kezdetű germán női nevek önállósult rövidülése.
+j0508	Mihály: héber eredetű; jelentése: az Istenhez hasonló.
+j0509	Gergely: görög eredetű; jelentése: éberen őrködő.
+j0510	Ármin: latin eredetű; jelentése: hadi férfi.
+j0510	Pálma: magyar eredetű; jelentése: a növény maga.
+j0511	Ferenc: francia-latin eredetű; jelentése: francia.
+j0512	Pongrác: latin eredetű; jelentése: minden + erő, hatalom.
+j0513	Szervác: latin eredetű; jelentése: megszabadított.
+j0513	Imola: ismeretlen eredetű; jelentése: mocsár, hínár, vizes terület.
+j0514	Bonifác: latin eredetű; jelentése: a jó sors embere; jótevő.
+j0515	Zsófia: görög eredetű; jelentése: bölcsesség.
+j0515	Szonja: a Zsófia orosz becézőjének németes formája.
+j0516	Mózes: héber eredetű; jelentése: vízből kihúzott.
+j0516	Botond: magyar eredetű; jelentése: buzogányos harcos.
+j0517	Paszkál: görög-héber-latin eredetű; jelentése: húsvét.
+j0518	Erik: germán eredetű név; jelentése: becsület + hatalmas, uralkodó
+j0518	Alexandra: görög-latin eredetű; jelentése: harcra kész, az embereket
+j0518	oltalmazó.
+j0519	Ivó: germán eredetű név; jelentése: tiszafa.
+j0519	Milán: szláv eredetű; jelentése: kedves.
+j0520	Bernát: germán eredetű; jelentése: erős, mint a medve.
+j0520	Felícia: latin eredetű; jelentése: boldog
+j0521	Konstantin: latin eredetű; jelentése: Constantius családjához tartozó;
+j0521	szilárd, állhatatos,
+j0522	Júlia: latin eredetű; jelentése: Juliusz nemzetségéhez tartozó.
+j0522	Rita: (ismeretlen)
+j0523	Dezső: a latin Desiderius névből származik; jelentése: óhajtott, kívánt
+j0523	(gyermek).
+j0524	Eszter: I. - héber eredetű; jelentése: mirtusz; II. - perzsa eredetű;
+j0524	jelentése: csillag, bájos fiatal lány
+j0524	Eliza: az Erzsébet (Elisabeth) önállósult rövidülése. Erzsébet: héber
+j0524	eredetű; jelentése: Isten az én esküvésem.
+j0525	Orbán: latin eredetű; jelentése: városi, finom, művelt, udvarias ember.
+j0526	Fülöp: görög eredetű; jelentése: lókedvelő.
+j0526	Evelin: I. az Éva francia (Eveline) és angol (Evelyn) továbbképzése;
+j0526	II. - kelta-skót eredetű; jelentése: kellemes, kedves, tetszetős.
+j0527	Hella: a Helga alakváltozata és a Heléna német rövidülése.
+j0528	Emil: latin eredetű; jelentése: az Aemilius nemzetségből származó férfi.
+j0528	Csanád: régi magyar személynév, az ismeretlen eredetű Csana  név -d
+j0528	kicsinyítőképzős származéka.
+j0529	Magdolna: a Magdaléna magyarosodott alakváltozata. Magdaléna: arámi-héber
+j0529	eredetű; jelentése: torony, bástya; Magdala városából származó nő.
+j0530	Janka: a János rövidített, becézett formája
+j0530	(eredetileg férfinévként volt használatos).
+j0530	Zsanett: a Johanna francia alakváltozata. Johanna: héber-görög-latin
+j0530	eredetű; jelentése: Isten kegyelme, Isten kegyelmes.
+j0531	Angéla: görög-latin eredetű; jelentése: angyal, követ, hírnök.
+j0531	Petronella: latin eredetű; jelentése: Petronius nemzetségéből származó
+j0531	nő; kő, szikla.
+j0601	Tünde: Vörösmarty Mihály névalkotása a tündér szóból.
+j0602	Kármen: héber-spanyol eredetű; jelentése: kert.
+j0602	Anita: az Anna és a Juanita (magyarul: Johanna) spanyol becézőjéből. Anna,
+j0602	Johanna: Bibliai név; jelentése: kellem, báj.
+j0603	Klotild: germán eredetű; jelentése: a dicsőségért harcoló nő.
+j0604	Bulcsú: török-magyar eredetű; jelentése: vért keverő, vért kibocsátó.
+j0605	Fatime: Arab eredetű név; jelentése: I. (emlőtől) elválasztott (?), II.
+j0605	Mohamed legfiatalabb leányának neve; III. - portugál eredetű
+j0606	Norbert: német eredetű; jelentése: északi fény.
+j0606	Cintia: görög eredetű; jelentése: Artemisz istennő mellékneve.
+j0607	Róbert: német eredetű; jelentése: fényes hírnév.
+j0608	Medárd: német eredetű; jelentése: hatalmas + erős.
+j0609	Félix: latin eredetű; jelentése: boldog.
+j0610	Margit: a Margaréta régi magyaros formája. Margaréta: görög eredetű;
+j0610	jelentése: gyöngy.
+j0610	Gréta: a Margaréta, Margit önállósult becézője.
+j0611	Barnabás: arámi-héber eredetű; jelentése: a vigasztalás fia.
+j0612	Villő: A név eredete és jelentése ismeretlen. Talán a latin villus szóból
+j0612	ered, ennek jelentése: lomb.
+j0613	Antal: latin eredetű; jelentése: herceg, fejedelem, előljáró.
+j0613	Anett: az Anna önállósult francia becézője. Anna: Bibliai név; jelentése:
+j0613	kellem, báj.
+j0614	Vazul: görög eredetű név; jelentése: királyi.
+j0615	Jolán: Dugonics András névalkotása. jelentése: jó leány (magyar); a viola
+j0615	virága (görög).
+j0615	Vid: a Gujdó délszláv megfelelője.
+j0616	Jusztin: a Jusztusz továbbképzett alakja. Jusztusz: latin eredetű; jelentése:
+j0616	igazságos, igazságszerető ember.
+j0617	Laura: latin eredetű; jelentése: babérfa, babérkoszorú.
+j0617	Alida: német eredetű; jelentése: nemes.
+j0618	Arnold: germán eredetű; jelentése: sas, uralkodó.
+j0618	Levente: magyar eredetű; jelentése: levő, létező.
+j0619	Gyárfás: görög-latin eredetű; jelentése: idős férfi.
+j0620	Rafael: héber eredetű; jelentése: Isten meggyógyít.
+j0621	Alajos: germán-latin eredetű; jelentése: egész + bölcs.
+j0621	Leila: perzsa eredetű név; jelentése: sötétség, éjszaka.
+j0622	Paulina: a Paula továbbképzése. latin eredetű; jelentése: kicsi, kis termetű.
+j0623	Zoltán: török-magyar eredetű; jelentése: fejedelem.
+j0624	Iván: Bibliai név; jelentése: Jahve megkegyelmezett.
+j0625	Vilmos: latin-germán eredetű; jelentése: erős akaratú védelmező.
+j0626	János: héber-görög-latin eredetű; jelentése: Isten kegyelme, Isten kegyelmes.
+j0626	Pál: latin-angol eredetű, jelentése: kicsi
+j0627	László: szláv eredetű; jelentése: hatalom + dicsőség.
+j0628	Levente: magyar eredetű; jelentése: levő, létező.
+j0628	Irén: görög eredetű; jelentése: béke.
+j0629	Péter: héber-görög-latin eredetű; jelentése: kőszikla.
+j0629	Pál: latin-angol eredetű, jelentése: kicsi
+j0630	Pál: latin-angol eredetű, jelentése: kicsi
+j0701	Tihamér: szláv-magyar eredetű; jelentése: csendet kedvelő.
+j0701	Annamária: az Anna és a Mária nevek összekapcsolása. Anna: Bibliai név;
+j0701	jelentése: kellem, báj. Mária: héber eredetű név; jelentése megfejthetetlen,
+j0701	valamennyi magyarázata vitatott.
+j0702	Ottó: német eredetű név; jelentése: birtok, vagyon.
+j0703	Kornél: latin eredetű; jelentése: somfa; szarv.
+j0703	Soma: magyar eredetű név; jelentése: som.
+j0704	Ulrik: német eredetű; jelentése: öröklött birtokán uralkodó.
+j0705	Emese: magyar eredetű; jelentése: anyácska.
+j0705	Sarolta: I. - török-magyar eredetű; jelentése: fehér menyét; II. - a Charlotte
+j0705	név magyarosítása.
+j0706	Csaba: török-magyar eredetű; jelentése: pásztor, kóborló
+j0707	Apollónia: görög-latin eredetű; jelentése: Apollónak szentelt.
+j0708	Ellák: bizonytalan eredetű név, Attila hun uralkodó fiának neve; jelentése:
+j0708	tölgy.
+j0709	Lukrécia: latin eredetű; jelentése: megnyerő, vonzó.
+j0710	Amália: germán eredetű; jelentése: az Amálok (gót királyi család) + védelem.
+j0711	Nóra: Az Eleonóra, és a Honóra rövidülése. Eleonóra: arab eredetű; jelentése:
+j0711	Isten az én világosságom. Honóra: (ismeretlen)
+j0711	Lili: A Liliána rövidülése: Liliána: angol eredetű; jelentése: liliom.
+j0712	Izabella: az Elisabeth (Erzsébet) spanyol módosulata. Erzsébet: héber
+j0712	eredetű; jelentése: Isten az én esküvésem.
+j0712	Dalma: Vörösmarty Mihály névalkotása a dal szóból.
+j0713	Jenő: török eredetű név; jelentése: bizalmas, tanácsadó, miniszter.
+j0714	Örs: török-magyar eredetű; jelentése: férfi hős.
+j0714	Stella: latin eredetű; jelentése: csillag.
+j0715	Henrik: germán eredetű; jelentése: körülkerített birtokán uralkodó.
+j0715	Roland: német eredetű; jelentése: vakmerő hős.
+j0716	Valter: német eredetű; jelentése: uralkodó sereg.
+j0717	Endre: német-szláv-magyar eredetű; jelentése: férfi, férfias.
+j0717	Elek: vitatott eredetű név.
+j0718	Frigyes: német-magyar eredetű; jelentése: béke + hatalom.
+j0719	Emília: latin eredetű; jelentése: versengő, vetélkedő.
+j0720	Illés: az Éliás önállósult változata. Éliás: héber-görög-latin eredetű;
+j0720	jelentése: Jahve az én Istenem.
+j0721	Dániel: héber eredetű; jelentése: Isten a bírám.
+j0721	Daniella: héber eredetű; jelentése: Isten a bírám.
+j0722	Magdolna: a Magdaléna magyarosodott alakváltozata. Magdaléna: arámi-héber
+j0722	eredetű; jelentése: torony, bástya; Magdala városából származó nő.
+j0723	Lenke: a Lenchen (Helene és Magdalene német becézője) magyarító fordítása.
+j0724	Kinga: a Kunigunda régi magyar becézőjéből önállósult. német-latin-magyar
+j0724	eredetű; jelentése: nemzetség + harc.
+j0724	Kincső: Jókai Mór névalkotása; jelentése: számomra ő a kincs.
+j0725	Kristóf: görög eredetű; jelentése: Krisztust hordozó.
+j0725	Jakab: héber eredetű; jelentése: (bizonytalan).
+j0726	Anna: Bibliai név; jelentése: kellem, báj.
+jj0726	Anikó: héber-székely eredetű; jelentése: bájos, kedves, Isten kegyelme.
+j0727	Olga: A Helga orosz formájából. Helga: Északi germán eredetű név; jelentése:
+j0727	megszentelt, ill. egészséges, boldog.
+j0727	Liliána: angol eredetű; jelentése: liliom.
+j0728	Szabolcs: magyar eredetű; jelentése: (ismeretlen).
+j0729	Márta: héber eredetű; jelentése: úrnő.
+j0729	Flóra: latin eredetű; jelentése: virág.
+j0730	Judit: héber eredetű; jelentése: Judeából származó nő.
+j0730	Xénia: görög eredetű; jelentése: vendég.
+j0731	Oszkár: I. - északi germán eredetű; jelentése: jó dárda; II. - ír-kelta
+j0731	eredetű; jelentése: szarvast kedvelő.
+j0801	Boglárka: magyar eredetű; jelentése: fémveretes, ékköves, gyöngyös, zománcos,
+j0801	gomb alakú ékítmény.
+j0802	Lehel: magyar eredetű; jelentése: a szó maga.
+j0803	Hermina: német eredetű; jelentése: hadi nő.
+j0804	Domonkos: latin eredetű; jelentése: az Úrhoz tartozó, Istennek szentelt.
+j0804	Dominika: latin eredetű; jelentése: az Úrhoz, Istenhez tartozó; vasárnap
+j0804	született.
+j0805	Krisztina: latin eredetű; jelentése: Krisztushoz tartozó, keresztény.
+j0806	Berta: német eredetű; jelentése: Perchta istennő nevéből.
+j0806	Bettina: a Betta név nőiesítő képzővel való továbbképzése. Betta: a Babett,
+j0806	Berta és Erzsébet neveknek becézőjéből alakult.
+j0807	Ibolya: magyar eredetű; jelentése: a virág maga.
+j0808	László: szláv eredetű; jelentése: hatalom + dicsőség.
+j0809	Emőd: régi magyar személynév; jelentése: kis csecsemő.
+j0810	Lőrinc: latin eredetű; jelentése: Laurentum vidékéről származó férfi;
+j0810	babérkoszorúval díszített.
+j0811	Zsuzsanna: héber-görög-latin eredetű; jelentése: liliom.
+j0811	Tiborc: latin eredetű; jelentése: Tibur városából való férfi.
+j0812	Klára: latin eredetű; jelentése: világos, fényes, ragyogó, híres, kitűnő,
+j0812	jeles.
+j0813	Ipoly: görög eredetű; jelentése: a lovakat kifogó.
+j0814	Marcell: latin eredetű; jelentése: Mars istenhez tartozó, neki szentelt.
+j0815	Mária: héber eredetű név; jelentése megfejthetetlen, valamennyi magyarázata
+j0815	vitatott.
+j0816	Ábrahám: héber eredetű; jelentése: a tömeg, a sokaság atyja.
+j0817	Jácint: görög-latin eredetű; jelentése: a virág neve.
+j0818	Ilona: a Heléna régi magyarosodott alakváltozata.
+j0819	Huba: (ismeretlen)
+j0820	Vajk török-magyar eredetű név; jelentése: gazdag.
+u0820	Ma van Szent István, az államallapítás ünnepe.
+j0821	Sámuel: héber eredetű; jelentése: Isten meghallgatott.
+j0821	Hajna: Vörösmarty Mihály névalkotása; jelentése: hajnal.
+j0822	Menyhért: héber eredetű; jelentése: királyi fény.
+j0822	Mirjam: A Mária eredeti héber formája. héber eredetű név; jelentése
+j0822	megfejthetetlen, valamennyi magyarázata vitatott.
+j0823	Bence: latin eredetű; jelentése: győztes.
+j0824	Bertalan: arámeus-görög-latin eredetű; jelentése: Ptolemaiosz fia.
+j0825	Lajos: germán-francia eredetű; jelentése: hírnév + háború.
+j0825	Patrícia: latin eredetű; jelentése: rómainak született nemes.
+j0826	Izsó: héber eredetű név; jelentése: nyers, szőrös.
+j0827	Gáspár: perzsa eredetű; jelentése: kincset megőrző.
+j0828	Ágoston: latin eredetű; jelentése: fenséges, fennkölt.
+j0829	Beatrix: latin eredetű; jelentése: boldogságot hozó.
+j0829	Erna: germán eredetű név; jelentése: komolyság, erély.
+j0830	Rózsa: magyar eredetű; jelentése: a virág maga.
+j0831	Erika: germán-latin eredetű; jelentése: nagyrabecsült.
+j0831	Bella: olasz-spanyol eredetű; jelentése: szép.
+j0901	Egyed: görög-magyar eredetű; jelentése: pajzshordozó.
+j0901	Egon: germán eredetű német név; jelentése: kard(hegy) + erős, merész.
+j0902	Rebeka: héber eredetű; jelentése: megkötöző, megigéző, megbabonázó; vagy:
+j0902	jól táplált.
+j0902	Dorina: a Dorottya névnek csonkított és kicsinyítőképzős formája. Dorottya:
+j0902	görög eredetű; jelentése: Isten ajándéka.
+j0903	Hilda: német eredetű; jelentése: harc, harcosnő.
+j0904	Rozália: a Róza olaszos továbbképzése. 
+j0905	Viktor: latin eredetű; jelentése: győző, győztes.
+j0905	Lőrinc: latin eredetű; jelentése: Laurentum vidékéről származó férfi;
+j0905	babérkoszorúval díszített.
+j0906	Zakariás: héber-latin eredetű; jelentése: Jahve emlékezik.
+j0907	Regina: 1. - latin eredetű; jelentése: királynő; 2. - a Rein- kezdetű német
+j0907	nevek önállósult becézője.
+j0908	Mária: héber eredetű név; jelentése megfejthetetlen, valamennyi magyarázata
+j0908	vitatott.
+j0908	Adrienn: latin-francia eredetű; jelentése: hadriai.
+j0909	Ádám: héber eredetű Bibliai név; jelentése: vörös, ill. vörös földből való.
+j0910	Nikolett: a Nikola olasz kicsinyítő továbbképzése. Nikola: görög-német
+j0910	eredetű; jelentése: győzelem + nép.
+j0910	Hunor: török-magyar eredetű; jelentése: onogur (népnév).
+j0911	Teodóra: görög-német eredetű; jelentése: Isten ajándéka.
+j0912	Mária: héber eredetű név; jelentése megfejthetetlen, valamennyi magyarázata
+j0912	vitatott.
+j0913	Kornél: latin eredetű; jelentése: somfa; szarv.
+j0914	Szeréna: latin eredetű; jelentése: derűs, vidám.
+j0914	Roxána: perzsa-görög eredetű; jelentése: (ismeretlen).
+j0915	Enikő: Vörösmarty Mihály alkotása. jelentése: ünő, szarvastehén.
+j0915	Melitta: görög eredetű; jelentése: méh, szorgalmas.
+j0916	Edit: germán eredetű név; jelentése: birtok, örökség, vagyon + harc.
+j0917	Zsófia: görög eredetű; jelentése: bölcsesség.
+j0918	Diána: római eredetű; jelentése: ragyogó.
+j0919	Vilhelmina: latin-német eredetű; jelentése: erős akaratú védelmező.
+j0920	Friderika: német eredetű; jelentése: béke + hatalom.
+j0921	Máté: héber eredetű név; jelentése: Isten ajándéka.
+j0921	Mirella: a Míra olasz becéző továbbképzése.
+j0922	Móric: latin eredetű; jelentése: mór, szerecsen.
+j0923	Tekla: görög eredetű; jelentése: Isten dicsősége.
+j0924	Gellért: német eredetű; jelentése: gerely + kemény.
+j0924	Mercédesz: spanyol eredetű; jelentése: fogolykiváltó.
+j0925	Eufrozina: görög-latin eredetű; jelentése: vidám.
+j0925	Kende: kazár magyar eredetű; jelentése: régi kazár méltóságnévből.
+j0926	Jusztina: latin eredetű; jelentése: igazságos.
+j0927	Adalbert: germán eredetű; jelentése: nemes fény; fénylő nemesség.
+j0928	Vencel: német-szláv eredetű; jelentése: koszorú + dicsőség.
+j0929	Mihály: héber eredetű; jelentése: az Istenhez hasonló.
+j0930	Jeromos: görög eredetű; jelentése: szent nevű.
+j1001	Malvin: germán eredetű; jelentése: a jog barátja.
+j1002	Petra: I.  héber-görög-latin eredetű; jelentése: kőszikla.II. - a Petronella
+j1002	önállósult becézője.
+j1003	Helga: germán eredetű; jelentése: egészséges, boldog.
+j1004	Ferenc: francia-latin eredetű; jelentése: francia.
+j1005	Aurél: latin eredetű;jelentése: aranyos.
+j1006	Brúnó: ófelnémet eredetű; jelentése: barna, barnamedve.
+j1006	Renáta: latin eredetű; jelentése: újászületett.
+j1007	Amália: germán eredetű; jelentése: az Amálok (gót királyi család) + védelem.
+j1008	Koppány: török-magyar eredetű; jelentése: méltóságnév. 
+j1009	Dénes: görög eredetű; jelentése: Dionüszosznak, a bor és a szőlő istenének
+j1009	ajánlott.
+j1010	Gedeon: héber eredetű; jelentése: harcos, vágó, romboló.
+j1011	Brigitta: óír eredetű; jelentése: erős, erényes.
+j1012	Miksa: a Miknál (ma: Mihály) önállósult becézőjéből
+j1013	Kálmán: török-magyar eredetű; jelentése: maradék.
+j1013	Ede: germán (angolszász) eredetű név; jelentése: birtok, vagyon + őrzés,
+j1013	védelem.
+j1014	Helén: a Heléna angol és francia formájából. Heléna: görög eredetű; jelentése:
+j1014	vitás. (talán: nap, hold.)
+j1015	Teréz: görög eredetű; jelentése: hőség, forróság, nyár, aratás, szüret;
+j1015	vadászni.
+j1016	Gál: kelta (ír) eredetű név; jelentése: gall.
+j1017	Hedvig: német eredetű; jelentése: harc.
+j1018	Lukács: latin eredetű; jelentése: Luciana tartományból való férfi.
+j1019	Nándor: vitás eredetű; jelentése: (bizonytalan).
+j1020	Vendel: német eredetű; jelentése: a vandálok népéhez tartozó.
+j1021	Orsolya: I. - latin eredetű; jelentése: kis medve; II. ófelnémet-latin
+j1021	eredetű; jelentése: ló, paripa.
+j1022	Előd: régi magyar személynév; jelentése: elsőszülött.
+j1023	Gyöngyi: a Gyöngyvér becézett formája. Gyöngyvér: Arany János névalkotása;
+j1023	jelentése: gyöngytestvér.
+u1023	Ma van az '56-os forradalom ünnepe.
+j1024	Salamon: héber eredetű; jelentése: békés, szelíd.
+j1025	Blanka: középlatin-spanyol eredetű; jelentése: fényes, ragyogó, tiszta.
+j1025	Bianka: a Blanka név olasz formájából.
+j1026	Dömötör: a Demeter magyar alakváltozata. Demeter: görög-szláv eredetű;
+j1026	Démétérnek, a föld istennőjének ajánlott.
+j1027	Szabina: latin eredetű; jelentése: a szabinok népéhez tartozó.
+j1028	Simon: a Simeon rövidüléséből. Simeon: héber eredetű; jelentése:
+j1028	meghallgattatás.
+j1028	Szimonetta: a Simon olasz kicsinyítőképzős női párja.
+j1029	Nárcisz: görög eredetű; jelentése: a virág maga.
+j1030	Alfonz: germán eredetű; jelentése: nemes, készséges; harcra kész.
+u1030	Ma ünnep van!
+j1031	Farkas: magyar eredetű; jelentése: a szó maga.
+j1101	Marianna: latin eredetű; jelentése: Marius családjához tartozó; Szűz Máriához
+j1101	tartozó.
+u1101	Ma Mindszentek van.
+j1102	Achilles: görög-latin eredetű; jelentése: a kígyó fia.
+j1103	Győző: a Viktor magyarító lefordítása. Viktor: latin eredetű; jelentése:
+j1103	győző, győztes.
+j1104	Károly: I. - magyar eredetű; jelentése: karvaly, turul; II. - germán-latin
+j1104	eredetű; jelentése: legény, fiú.
+j1105	Imre: germán eredetű név; jelentése: szorgalmas, munkás, hatalmas, uralkodó.
+j1106	Lénárd: germán eredetű; jelentése: erős, mint az oroszlán.
+j1107	Rezső: magyar eredetű; jelentése: (ismeretlen).
+j1108	Zsombor: bolgár, török magyar eredetű név; jelentése: bölény.
+j1109	Tivadar: görög-latin eredetű; jelentése: Isten ajándéka.
+j1110	Réka: török, hun, magyar eredetű név; jelentése: (ismeretlen).
+j1111	Márton: héber eredetű; jelentése: Jahve ajándéka.
+j1112	Jónás: héber eredetű; jelentése: galamb.
+j1112	Renátó: latin eredetű; jelentése: újászületett.
+j1113	Szilvia: latin eredetű; jelentése: erdő.
+j1114	Aliz: az Alice névből származik.
+j1115	Albert: német eredetű; jelentése: nemes, fényes.
+j1115	Lipót: a Leopold bajor változatából. Leopold: germán eredetű; jelentése:
+j1115	merész a népben és a hadseregben.
+j1116	Ödön: görög, német eredetű név; jelentése: előkelő, nemes nemzetségből való.
+j1117	Hortenzia: latin eredetű; jelentése: kerti virág.
+j1117	Gergő: a Gergely magyar alakváltozata. Gergely: görög eredetű; jelentése:
+j1117	éberen őrködő.
+j1118	Jenő: török eredetű név; jelentése: bizalmas, tanácsadó, miniszter.
+j1119	Erzsébet: héber eredetű; jelentése: Isten az én esküvésem.
+j1120	Jolán: Dugonics András névalkotása. jelentése: jó leány (magyar); a viola
+j1120	virága (görög).
+j1121	Olivér: latin eredetű; jelentése: olajfaültető.
+j1122	Cecília: latin eredetű; jelentése: a Caecilius nemzetséghez tartozó.
+j1123	Kelemen: latin eredetű; jelentése: jámbor, szelíd.
+j1123	Klementina: latin eredetű név; jelentése: szelíd, kegyes, jóságos.
+j1124	Emma: germán eredetű név; jelentése: (ismeretlen).
+j1125	Katalin: egyiptomi-görög-német-magyar eredetű; jelentése: korona; mindig
+j1125	tiszta.
+j1126	Virág: magyar eredetű; jelentése: a szó maga.
+j1127	Virgil: latin eredetű; jelentése: vékony zöld ág.
+j1128	Stefánia: latin eredetű; jelentése: virágkoszorú.
+j1129	Taksony: török-magyar eredetű; jelentése: jóllakott, elégedett; vad,
+j1129	kegyetlen, féktelen, szilaj.
+j1130	András: görög eredetű; jelentése: férfi, férfias.
+j1130	Andor: görög eredetű; jelentése: férfi, férfias.
+j1201	Elza: Az Elizabeth (magyarul Erzsébet) német rövidüléséből származik.
+j1201	Erzsébet: héber eredetű; jelentése: Isten az én esküvésem.
+j1202	Melinda: D'Ussieux francia író névalkotása.
+j1202	Vivien: a Viviána angol változata. Viviána: latin eredetű; jelentése:
+j1202	eleven, élő.
+j1203	Ferenc: francia-latin eredetű; jelentése: francia.
+j1204	Borbála: a Barbara magyaros módosulata.
+j1204	Barbara: görög eredetű; jelentése: idegen, külföldi nő.
+j1205	Vilma: latin-német eredetű; jelentése: erős akaratú védelmező.
+j1206	Miklós: görög-szláv eredetű; jelentése: győzelem + nép.
+j1207	Ambrus: görög eredetű; jelentése: halhatatlan.
+j1208	Mária: héber eredetű név; jelentése megfejthetetlen, valamennyi magyarázata
+j1208	vitatott.
+j1209	Natália: latin eredetű; jelentése: Jézus születésnapja.
+j1210	Judit: héber eredetű; jelentése: Judeából származó nő.
+j1211	Árpád: magyar eredetű; jelentése: árpa.
+j1212	Gabriella: héber-latin eredetű; jelentése: Isten embere, Isten bajnoka.
+j1213	Luca: A Lúcia magyar formája.
+j1213	Otília: német eredetű; jelentése: öröklött vagyon.
+j1214	Szilárda: latin eredetű; jelentése: szilárd, állhatatos, következetes.
+j1215	Valér: A Valéria rövidülése. Latin eredetű; jelentése: erős, egészséges.
+j1216	Etelka: Dugonics András alkotta az Etele férfinévből. Etele: hun-magyar
+j1216	eredetű; jelentése: szeretett apánk.
+j1216	Aletta: német-olasz eredetű; jelentése: nemes.
+j1217	Lázár: héber-görög-latin eredetű; jelentése: Isten a segítőm.
+j1217	Olimpia: görög eredetű; jelentése: égi, mennyei, isteni.
+j1218	Auguszta: latin eredetű; jelentése: fenséges, fennkölt.
+j1219	Viola: magyar eredetű; jelentése: a virág maga.
+j1220	Teofil: görög-latin eredetű; jelentése: Isten kedveltje; Istent kedvelő.
+j1221	Tamás: arameus-görög eredetű; jelentése: iker; csodálatos.
+j1222	Zénó: görög, latin eredetű név; jelentése: Zeusztól származó.
+j1223	Viktória: latin eredetű; jelentése: győzelem.
+j1224	Ádám: héber eredetű Bibliai név; jelentése: vörös, ill. vörös földből való.
+j1224	Éva: Bibliai név; jelentése: (ismeretlen).
+u1224	Karácsony szentestéje.
+j1225	Eugénia: görög-latin-német eredetű; jelentése: előkelő, jeles nemzetségből
+j1225	való.
+u1225	Karácsony.
+j1226	István: görög-német-magyar eredetű; jelentése: virágkoszorú.
+u1226	Karácsony.
+j1227	János: héber-görög-latin eredetű; jelentése: Isten kegyelme, Isten kegyelmes.
+j1228	Kamilla: latin eredetű; jelentése: nemesi születésű.
+j1229	Tamás: arameus-görög eredetű; jelentése: iker; csodálatos.
+j1229	Tamara: héber eredetű; jelentése: datolyapálma.
+j1230	Dávid: héber eredetű; jelentése: kedvelt, szeretett; egyesítő.
+j1231	Szilveszter: latin eredetű; jelentése: erdő, erdő mellett lakó férfi.
+u1231	Ma van az év utolsó napja! B.Ú.É.K.!
