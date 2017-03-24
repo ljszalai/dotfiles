@@ -75,7 +75,7 @@ NAP=`date +%d`
 JEL="j"
 UNNEP="u"
 DEC31=`date --date '31dec' +%j`
-LUCA ="1213"
+LUCA="1213"
 KARACSONY=`date --date '24dec' +%j`
 
 clear
