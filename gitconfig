@@ -1,0 +1,62 @@
+# This is Git's per-user configuration file.
+[user]
+# Please adapt and uncomment the following lines:
+	name = [your name]
+	email = [somebody]@[somewhere.com]
+
+[alias]
+    lg1 = log --graph --abbrev-commit --decorate --format=format:'%C(bold blue)%h%C(reset) - %C(bold green)(%ar)%C(reset) %C(white)%s%C(reset) %C(dim green)- %an%C(reset)%C(bold yellow)%d%C(reset)' --all
+    lg2 = log --graph --abbrev-commit --decorate --format=format:'%C(bold blue)%h%C(reset) - %C(bold cyan)%aD%C(reset) %C(bold green)(%ar)%C(reset)%C(bold yellow)%d%C(reset)%n'' %C(white)%s%C(reset) %C(dim white)- %an%C(reset)' --all
+    lg11 = log --graph --abbrev-commit --decorate --format=format:'%C(bold blue)%h%C(reset) - %C(bold green)(%ar)%C(reset) %C(white)%s%C(reset) %C(dim green)- %an%C(reset)%C(bold yellow)%d%C(reset)'
+    lg21 = log --graph --abbrev-commit --decorate --format=format:'%C(bold blue)%h%C(reset) - %C(bold cyan)%aD%C(reset) %C(bold green)(%ar)%C(reset)%C(bold yellow)%d%C(reset)%n'' %C(white)%s%C(reset) %C(dim white)- %an%C(reset)'
+    lg = !git lg1
+    sg = log --graph --oneline --decorate --all
+    st = status -s
+    up = pull --rebase
+    dt = difftool
+    mt = mergetool
+    br = branch
+    brv = branch -v
+    stu = status -u
+    stl = stash list
+    sth = stash
+    cho = checkout
+    com = commit
+    adu = add -u
+    dcf = diff --name-only
+    dfw = diff --ignore-space-change
+    lgl = !git lg1 @{u}..
+    lgl1 = !git lg11 @{u}..
+    lgmah = !git lg11 HEAD..origin/master
+    lg1l = !git lg11 ..@{u}
+    lgbah = !git lg11 origin/master..HEAD
+    sgb = log --graph --oneline --decorate
+    ffbr = "!func(){ bash ff-merge.sh refs/heads/$1; }; func"
+    chom = checkout master
+    chob = checkout -b
+    puor = push origin
+    stup = "!func(){ git stash && git pull --rebase && git stash pop; }; func"
+    comc = "!func(){ git log --oneline --since=$1 | grep -c \" \"; }; func"
+    recon = rebase --continue
+    stabr = "!func(){ bash git-branch-status; }; func"
+    choball = checkout -- *
+    unpushed = log --oneline --branches --not --remotes
+    unpulled = log --oneline ..@{u}
+    parentfor = log --pretty=%p -1 
+    alias = "!func(){ git config --get-regexp '^alias\\.' | sed -e 's/^alias\\.//' -e 's/\\ /\\ = \\ /'; }; func" 
+[pull]
+	rebase = true
+[core]
+	autocrlf = input
+#	editor = 'c:/Program Files/Notepad++/notepad++.exe'
+	editor = vim
+# example: how to set beyond compare as default diff tool instead of vimdiff
+# altough changing vimdiff is definitely the bigest mistake you can ever do...
+[diff]
+	tool = bc3
+[difftool "bc3"]
+	path = c:/Program Files/Beyond Compare 4/bcomp.exe
+[merge]
+	tool = bc3
+[mergetool "bc3"]
+	path = c:/Program Files/Beyond Compare 4/bcomp.exe
